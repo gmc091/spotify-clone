@@ -4,7 +4,7 @@ import { Song } from "@/types";
 import { BsPauseFill, BsPlayFill } from "react-icons/bs";
 import { AiFillStepBackward, AiFillStepForward } from "react-icons/ai";
 import { HiSpeakerWave, HiSpeakerXMark } from "react-icons/hi2";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSound from "use-sound";
 
 import usePlayer from "@/hooks/usePlayer";
@@ -32,11 +32,18 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 	const [isScrubbing, setIsScrubbing] = useState(false);
 	const [scrubTime, setScrubTime] = useState(0);
 	const [isLoading, setIsLoading] = useState(false);
+	const [repeat, setRepeat] = useState(false);
 
 	const Icon = isPlaying ? BsPauseFill : BsPlayFill;
 	const VolumeIcon = volume === 0 ? HiSpeakerXMark : HiSpeakerWave;
 
-	let repeat = false;
+	const toggleRepeat = () => {
+		toast.success(`Should work 2 ${repeat}`);
+
+		setRepeat(!repeat);
+
+		toast.success(`Should work 3 ${repeat}`);
+	};
 
 	const onPlayNext = () => {
 		if (player.ids.length === 0) {
@@ -60,12 +67,14 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 		setVolume(0);
 
 		player.setId(player.ids[currentIndex + 1]);
-		toast.success(`Should work ${repeat}`);
+		let repeatValue = repeat;
+		toast.success(`Should work ${repeatValue}`);
 
 		setTimeout(() => {
 			player.setId(player.ids[currentIndex]);
 			setVolume(1);
 			play();
+			toast.success(`Should work 1 ${repeat}`);
 		}, 100);
 	};
 
@@ -88,13 +97,15 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 		volume: volume,
 		onplay: () => setIsPlaying(true),
 		onend: () => {
+			console.log("onend repeat:", repeat);
+			setIsPlaying(false);
 			if (repeat) {
 				repeatSong();
 			} else {
-				setIsPlaying(false);
 				onPlayNext();
 			}
 		},
+
 		onpause: () => setIsPlaying(false),
 		format: ["mp3"],
 	});
@@ -249,6 +260,20 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 						size={27}
 						className="text-neutral-400 cursor-pointer hover:text-white transition"
 					/>
+
+					{repeat ? (
+						<TbRepeat
+							onClick={toggleRepeat}
+							size={27}
+							className="text-neutral-400 cursor-pointer hover:text-white transition"
+						/>
+					) : (
+						<TbRepeatOff
+							onClick={toggleRepeat}
+							size={27}
+							className="text-neutral-400 cursor-pointer hover:text-white transition"
+						/>
+					)}
 				</div>
 				<div
 					className="w-full flex items-center justify-center gap-2"
