@@ -12,8 +12,11 @@ import usePlayer from "@/hooks/usePlayer";
 import MediaItem from "./MediaItem";
 import LikeButton from "./LikeButton";
 import Slider from "./Slider";
+import MediaItemSkeleton from "./MediaItemSkeleton";
+import LikeButtonSkeleton from "./LikeButtonSkeleton";
 
 import { TbRepeatOff, TbRepeat } from "react-icons/tb";
+import { toast } from "react-hot-toast";
 
 interface PlayerContentProps {
 	song: Song;
@@ -26,13 +29,14 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [playbackProgress, setPlaybackProgress] = useState(0);
 	const [displayRemainingTime, setDisplayRemainingTime] = useState(false);
-	const [isDragging, setIsDragging] = useState(false);
-	const [tempTime, setTempTime] = useState(0);
 	const [isScrubbing, setIsScrubbing] = useState(false);
 	const [scrubTime, setScrubTime] = useState(0);
+	const [isLoading, setIsLoading] = useState(false);
 
 	const Icon = isPlaying ? BsPauseFill : BsPlayFill;
 	const VolumeIcon = volume === 0 ? HiSpeakerXMark : HiSpeakerWave;
+
+	let repeat = false;
 
 	const onPlayNext = () => {
 		if (player.ids.length === 0) {
@@ -47,6 +51,22 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 		}
 
 		player.setId(nextSong);
+	};
+
+	const repeatSong = () => {
+		const currentIndex = player.ids.findIndex((id) => id === player.activeId);
+
+		setIsLoading(true);
+		setVolume(0);
+
+		player.setId(player.ids[currentIndex + 1]);
+		toast.success(`Should work ${repeat}`);
+
+		setTimeout(() => {
+			player.setId(player.ids[currentIndex]);
+			setVolume(1);
+			play();
+		}, 100);
 	};
 
 	const onPlayPrevious = () => {
@@ -68,8 +88,12 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 		volume: volume,
 		onplay: () => setIsPlaying(true),
 		onend: () => {
-			setIsPlaying(false);
-			onPlayNext();
+			if (repeat) {
+				repeatSong();
+			} else {
+				setIsPlaying(false);
+				onPlayNext();
+			}
 		},
 		onpause: () => setIsPlaying(false),
 		format: ["mp3"],
@@ -184,8 +208,17 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 		<div className="grid grid-cols-2 md:grid-cols-3 h-full">
 			<div className="flex w-full justify-start">
 				<div className="flex items-center gap-x-4">
-					<MediaItem data={song} />
-					<LikeButton songId={song.id} />
+					{isLoading ? (
+						<>
+							<MediaItemSkeleton />
+							<LikeButtonSkeleton />
+						</>
+					) : (
+						<>
+							<MediaItem data={song} />
+							<LikeButton songId={song.id} />
+						</>
+					)}
 				</div>
 			</div>
 			<div className="flex md:hidden col-auto w-full justify-end items-center">
