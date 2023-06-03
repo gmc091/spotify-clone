@@ -1,21 +1,37 @@
 import * as RadixSlider from "@radix-ui/react-slider";
+import { useState } from "react";
 
 interface SliderProps {
 	value: number;
-	onChange: (value: number) => void;
+	onScrub?: (value: number) => void;
+	onScrubEnd?: (value: number) => void;
 	max: number;
 }
 
-const Slider: React.FC<SliderProps> = ({ value = 1, onChange, max = 1 }) => {
-	const handleChange = (newValue: number[]) => {
-		onChange?.(newValue[0]);
+const Slider: React.FC<SliderProps> = ({
+	value = 1,
+	onScrub,
+	onScrubEnd,
+	max = 1,
+}) => {
+	const [tempValue, setTempValue] = useState(value);
+
+	const handleValueChange = (newValue: number[]) => {
+		setTempValue(newValue[0]);
+		onScrub?.(newValue[0]);
 	};
+
+	const handleValueCommit = (newValue: number[]) => {
+		[];
+		onScrubEnd?.(newValue[0]);
+	};
+
 	return (
 		<RadixSlider.Root
 			className="relative flex items-center touch-none w-full h-10"
-			defaultValue={[1]}
-			value={[value]}
-			onValueChange={handleChange}
+			value={[tempValue]}
+			onValueChange={handleValueChange}
+			onValueCommit={handleValueCommit}
 			max={max}
 			step={0.01}
 			aria-label="Volume"

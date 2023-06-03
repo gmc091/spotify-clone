@@ -4,7 +4,7 @@ import { Song } from "@/types";
 import { BsPauseFill, BsPlayFill } from "react-icons/bs";
 import { AiFillStepBackward, AiFillStepForward } from "react-icons/ai";
 import { HiSpeakerWave, HiSpeakerXMark } from "react-icons/hi2";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import useSound from "use-sound";
 
 import usePlayer from "@/hooks/usePlayer";
@@ -26,6 +26,10 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [playbackProgress, setPlaybackProgress] = useState(0);
 	const [displayRemainingTime, setDisplayRemainingTime] = useState(false);
+	const [isDragging, setIsDragging] = useState(false);
+	const [tempTime, setTempTime] = useState(0);
+	const [isScrubbing, setIsScrubbing] = useState(false);
+	const [scrubTime, setScrubTime] = useState(0);
 
 	const Icon = isPlaying ? BsPauseFill : BsPlayFill;
 	const VolumeIcon = volume === 0 ? HiSpeakerXMark : HiSpeakerWave;
@@ -37,30 +41,6 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 
 		const currentIndex = player.ids.findIndex((id) => id === player.activeId);
 		const nextSong = player.ids[currentIndex + 1];
-
-		useEffect(() => {
-			let intervalId: NodeJS.Timeout | undefined;
-
-			const updatePlaybackProgress = () => {
-				if (sound) {
-					const currentTime = sound.seek() || 0;
-					const totalTime = sound.duration() || 0;
-					setPlaybackProgress(currentTime / totalTime);
-				}
-			};
-
-			if (sound) {
-				// Start updating playback progress every second when the sound starts playing.
-				intervalId = setInterval(updatePlaybackProgress, 1000);
-			}
-
-			// When the component unmounts or when the sound changes, stop updating playback progress.
-			return () => {
-				if (intervalId) {
-					clearInterval(intervalId);
-				}
-			};
-		}, [sound]);
 
 		if (!nextSong) {
 			return player.setId(player.ids[0]);
@@ -96,10 +76,35 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 	});
 
 	useEffect(() => {
-		sound?.play();
+		let intervalId: NodeJS.Timeout | undefined;
+
+		const updatePlaybackProgress = () => {
+			if (sound) {
+				const currentTime = sound.seek() || 0;
+				const totalTime = sound.duration() || 0;
+				setPlaybackProgress(currentTime / totalTime);
+			}
+		};
+
+		if (sound) {
+			// Start updating playback progress every second when the sound starts playing.
+			intervalId = setInterval(updatePlaybackProgress, 1000);
+		}
+
+		// When the component unmounts or when the sound changes, stop updating playback progress.
+		return () => {
+			if (intervalId) {
+				clearInterval(intervalId);
+			}
+		};
+	}, [sound]);
+
+	useEffect(() => {
+		if (!sound) return;
+		sound.play();
 
 		return () => {
-			sound?.unload();
+			sound.unload();
 		};
 	}, [sound]);
 
@@ -108,14 +113,6 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 			play();
 		} else {
 			pause();
-		}
-	};
-
-	const toggleMute = () => {
-		if (volume === 0) {
-			setVolume(1);
-		} else {
-			setVolume(0);
 		}
 	};
 
@@ -132,7 +129,29 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown);
 		};
-	}, [isPlaying]);
+	}, [isPlaying, handlePlay]); // Added handlePlay in the dependency array
+
+	const toggleMute = () => {
+		if (volume === 0) {
+			setVolume(1);
+		} else {
+			setVolume(0);
+		}
+	};
+
+	// Function to handle changes from the Slider component
+	const handleSeekChange = (value: number) => {
+		setIsScrubbing(true);
+		setScrubTime(value);
+	};
+
+	const handleSeekCommit = (value: number) => {
+		if (sound) {
+			sound.seek(value);
+			setIsScrubbing(false);
+			setPlaybackProgress(value / sound.duration());
+		}
+	};
 
 	useEffect(() => {
 		let intervalId: number | undefined;
@@ -150,15 +169,7 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 				window.clearInterval(intervalId);
 			}
 		};
-	}, [sound]);
-
-	// Function to handle changes from the Slider component
-	const handleSeekChange = (value: number) => {
-		if (sound) {
-			sound.seek(value);
-			setPlaybackProgress(value / sound.duration());
-		}
-	};
+	}, [sound, handleSeekChange]); // Added handleSeekChange in the dependency array
 
 	const toggleTimeDisplay = () =>
 		setDisplayRemainingTime(!displayRemainingTime);
@@ -214,8 +225,9 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 						{formatTime(sound?.seek() || 0)}
 					</span>
 					<Slider
-						value={sound?.seek() || 0}
-						onChange={handleSeekChange}
+						value={isScrubbing ? scrubTime : sound?.seek() || 0}
+						onScrub={handleSeekChange}
+						onScrubEnd={handleSeekCommit}
 						max={sound?.duration() || 0}
 					/>
 					<span
@@ -240,7 +252,8 @@ const PlayerContent: React.FC<PlayerContentProps> = ({ song, songUrl }) => {
 					/>
 					<Slider
 						value={volume}
-						onChange={(value) => setVolume(value)}
+						onScrub={handleSeekChange}
+						onScrubEnd={handleSeekCommit}
 						max={1}
 					/>
 				</div>
